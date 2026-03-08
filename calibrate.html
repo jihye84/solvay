@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>핫스팟 보정 도구</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #111;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Top toolbar */
+        #toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: #1a1a2e;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 12px;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+
+        #toolbar h1 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffd700;
+            white-space: nowrap;
+        }
+
+        #toolbar .sep {
+            width: 1px;
+            height: 24px;
+            background: #444;
+        }
+
+        #toolbar button {
+            background: #2a2a4e;
+            border: 1px solid #555;
+            color: #eee;
+            padding: 5px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        #toolbar button:hover {
+            background: #3a3a6e;
+        }
+
+        #toolbar button.primary {
+            background: #d4a017;
+            color: #111;
+            font-weight: 700;
+            border-color: #d4a017;
+        }
+
+        #toolbar button.primary:hover {
+            background: #e6b22e;
+        }
+
+        #toolbar .zoom-info {
+            font-size: 12px;
+            color: #aaa;
+            margin-left: auto;
+        }
+
+        /* Side panel */
+        #side-panel {
+            position: fixed;
+            top: 44px;
+            right: 0;
+            width: 320px;
+            bottom: 0;
+            background: #1a1a2e;
+            border-left: 1px solid #333;
+            z-index: 900;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #side-panel h2 {
+            font-size: 14px;
+            padding: 10px 12px;
+            background: #222244;
+            border-bottom: 1px solid #333;
+            color: #ffd700;
+        }
+
+        #scientist-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .sci-item {
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #222;
+        }
+
+        .sci-item:hover {
+            background: #252548;
+        }
+
+        .sci-item.selected {
+            background: #3a3a6e;
+            border-left: 3px solid #ffd700;
+        }
+
+        .sci-item .idx {
+            width: 22px;
+            height: 22px;
+            background: #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #ffd700;
+            flex-shrink: 0;
+        }
+
+        .sci-item .name {
+            flex: 1;
+        }
+
+        .sci-item .coords {
+            font-size: 10px;
+            color: #888;
+            font-family: monospace;
+        }
+
+        /* Selected info */
+        #selected-info {
+            padding: 12px;
+            background: #222244;
+            border-top: 1px solid #444;
+        }
+
+        #selected-info h3 {
+            color: #ffd700;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        #selected-info .control-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin: 4px 0;
+            font-size: 12px;
+        }
+
+        #selected-info label {
+            width: 24px;
+            color: #aaa;
+            font-weight: 700;
+        }
+
+        #selected-info input[type="number"] {
+            width: 70px;
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .nudge-btn {
+            width: 26px;
+            height: 26px;
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nudge-btn:hover {
+            background: #555;
+        }
+
+        /* Export panel */
+        #export-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            border: 2px solid #ffd700;
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 2000;
+            width: 700px;
+            max-height: 80vh;
+        }
+
+        #export-panel h2 {
+            color: #ffd700;
+            margin-bottom: 12px;
+        }
+
+        #export-panel textarea {
+            width: 100%;
+            height: 50vh;
+            background: #111;
+            color: #0f0;
+            border: 1px solid #333;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        #export-panel .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        #export-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1999;
+        }
+
+        /* The viewport */
+        #viewport {
+            position: fixed;
+            top: 44px;
+            left: 0;
+            right: 320px;
+            bottom: 0;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        #viewport.dragging-hotspot {
+            cursor: move;
+        }
+
+        #canvas {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        #canvas img {
+            display: block;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        #hotspots {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Hotspot circles */
+        .hotspot {
+            position: absolute;
+            border-radius: 50%;
+            border: 2.5px solid rgba(255, 50, 50, 0.9);
+            background: rgba(255, 0, 0, 0.15);
+            cursor: move;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .hotspot:hover {
+            border-color: rgba(255, 200, 0, 1);
+            background: rgba(255, 200, 0, 0.2);
+        }
+
+        .hotspot.active {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+        }
+
+        .hotspot .label {
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #ffd700;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1px 5px;
+            border-radius: 3px;
+            white-space: nowrap;
+            pointer-events: none;
+            display: none;
+        }
+
+        .hotspot:hover .label,
+        .hotspot.active .label {
+            display: block;
+        }
+
+        /* Crosshair on active */
+        .hotspot.active::before,
+        .hotspot.active::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 215, 0, 0.6);
+        }
+
+        .hotspot.active::before {
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            transform: translateY(-0.5px);
+        }
+
+        .hotspot.active::after {
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            transform: translateX(-0.5px);
+        }
+
+        /* Instructions */
+        #instructions {
+            position: fixed;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(26, 26, 46, 0.9);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccc;
+            z-index: 800;
+            max-width: 400px;
+        }
+
+        #instructions kbd {
+            background: #333;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #555;
+            font-size: 11px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <h1>🔧 핫스팟 보정 도구</h1>
+        <div class="sep"></div>
+        <button onclick="zoomTo(1.3)">➕ 확대</button>
+        <button onclick="zoomTo(1/1.3)">➖ 축소</button>
+        <button onclick="resetView()">🔄 리셋</button>
+        <div class="sep"></div>
+        <button onclick="toggleLabels()">🏷️ 라벨 토글</button>
+        <button class="primary" onclick="showExport()">📋 좌표 내보내기</button>
+        <span class="zoom-info" id="zoom-info">100%</span>
+    </div>
+
+    <!-- Viewport -->
+    <div id="viewport">
+        <div id="canvas">
+            <img id="photo" src="https://upload.wikimedia.org/wikipedia/commons/6/6e/Solvay_conference_1927.jpg"
+                alt="Solvay 1927" draggable="false">
+            <div id="hotspots"></div>
+        </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div id="side-panel">
+        <h2>과학자 목록 (29명)</h2>
+        <div id="scientist-list"></div>
+        <div id="selected-info">
+            <h3 id="sel-name">선택된 인물 없음</h3>
+            <div class="control-row">
+                <label>cx</label>
+                <button class="nudge-btn" onclick="nudge('cx', -5)">◀</button>
+                <input type="number" id="inp-cx" onchange="onInputChange()">
+                <button class="nudge-btn" onclick="nudge('cx', 5)">▶</button>
+                <button class="nudge-btn" onclick="nudge('cx', -1)" style="font-size:10px">-1</button>
+                <button class="nudge-btn" onclick="nudge('cx', 1)" style="font-size:10px">+1</button>
+            </div>
+            <div class="control-row">
+                <label>cy</label>
+                <button class="nudge-btn" onclick="nudge('cy', -5)">▲</button>
+                <input type="number" id="inp-cy" onchange="onInputChange()">
+                <button class="nudge-btn" onclick="nudge('cy', 5)">▼</button>
+                <button class="nudge-btn" onclick="nudge('cy', -1)" style="font-size:10px">-1</button>
+                <button class="nudge-btn" onclick="nudge('cy', 1)" style="font-size:10px">+1</button>
+            </div>
+            <div class="control-row">
+                <label>r</label>
+                <button class="nudge-btn" onclick="nudge('r', -3)">−</button>
+                <input type="number" id="inp-r" onchange="onInputChange()">
+                <button class="nudge-btn" onclick="nudge('r', 3)">+</button>
+                <button class="nudge-btn" onclick="nudge('r', -1)" style="font-size:10px">-1</button>
+                <button class="nudge-btn" onclick="nudge('r', 1)" style="font-size:10px">+1</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">
+        🖱️ <b>드래그</b>: 원을 잡고 끌어서 이동 &nbsp;|&nbsp;
+        <kbd>↑↓←→</kbd> 화살표키: 1px 이동 &nbsp;|&nbsp;
+        <kbd>Shift</kbd>+화살표: 5px 이동<br>
+        스크롤: 확대/축소 &nbsp;|&nbsp;
+        빈 곳 드래그: 이미지 이동 &nbsp;|&nbsp;
+        <kbd>Tab</kbd>: 다음 인물
+    </div>
+
+    <!-- Export overlay -->
+    <div id="export-overlay" onclick="hideExport()"></div>
+    <div id="export-panel">
+        <h2>📋 보정된 좌표 데이터</h2>
+        <p style="color:#aaa; font-size:13px; margin-bottom:10px;">아래 데이터를 복사하여 전달해주세요. app.js에 적용하겠습니다.</p>
+        <textarea id="export-text" readonly></textarea>
+        <div class="btn-row">
+            <button class="primary" onclick="copyExport()" style="padding:8px 20px; font-size:14px;">📋 클립보드에
+                복사</button>
+            <button onclick="hideExport()"
+                style="padding:8px 20px; font-size:14px; background:#333; border:1px solid #555; color:#eee; border-radius:4px; cursor:pointer;">닫기</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== Scientist data (imported from app.js) =====
+        const scientists = [
+            { name: "오귀스트 피카르", nameEn: "Auguste Piccard", cx: 667, cy: 783, r: 62 },
+            { name: "에밀 앙리오", nameEn: "Émile Henriot", cx: 816, cy: 837, r: 58 },
+            { name: "파울 에렌페스트", nameEn: "Paul Ehrenfest", cx: 1090, cy: 893, r: 58 },
+            { name: "에두아르 에르젠", nameEn: "Édouard Herzen", cx: 1354, cy: 958, r: 55 },
+            { name: "테오필 드 동데르", nameEn: "Théophile de Donder", cx: 1628, cy: 988, r: 58 },
+            { name: "에르빈 슈뢰딩거", nameEn: "Erwin Schrödinger", cx: 1848, cy: 902, r: 58 },
+            { name: "쥘에밀 베르샤펠트", nameEn: "Jules-Émile Verschaffelt", cx: 2264, cy: 837, r: 58 },
+            { name: "볼프강 파울리", nameEn: "Wolfgang Pauli", cx: 2401, cy: 893, r: 58 },
+            { name: "베르너 하이젠베르크", nameEn: "Werner Heisenberg", cx: 2597, cy: 935, r: 58 },
+            { name: "랠프 파울러", nameEn: "Ralph Fowler", cx: 2794, cy: 947, r: 58 },
+            { name: "레옹 브릴루앙", nameEn: "Léon Brillouin", cx: 2939, cy: 979, r: 58 },
+            // Middle row
+            { name: "페터 데바이", nameEn: "Peter Debye", cx: 691, cy: 1056, r: 65 },
+            { name: "마르틴 크누센", nameEn: "Martin Knudsen", cx: 896, cy: 1080, r: 65 },
+            { name: "윌리엄 로런스 브래그", nameEn: "W.L. Bragg", cx: 1131, cy: 1068, r: 65 },
+            { name: "헨드릭 크라머르스", nameEn: "H.A. Kramers", cx: 1354, cy: 1089, r: 65 },
+            { name: "폴 디랙", nameEn: "Paul Dirac", cx: 1586, cy: 1080, r: 65 },
+            { name: "아서 콤프턴", nameEn: "A.H. Compton", cx: 1833, cy: 1101, r: 65 },
+            { name: "루이 드 브로이", nameEn: "Louis de Broglie", cx: 2077, cy: 1122, r: 65 },
+            { name: "막스 보른", nameEn: "Max Born", cx: 2303, cy: 1113, r: 65 },
+            { name: "닐스 보어", nameEn: "Niels Bohr", cx: 2532, cy: 1080, r: 65 },
+            // Front row
+            { name: "어빙 랭뮤어", nameEn: "Irving Langmuir", cx: 700, cy: 1208, r: 69 },
+            { name: "막스 플랑크", nameEn: "Max Planck", cx: 938, cy: 1240, r: 69 },
+            { name: "마리 퀴리", nameEn: "Marie Curie", cx: 1170, cy: 1252, r: 69 },
+            { name: "헨드릭 로런츠", nameEn: "Hendrik Lorentz", cx: 1423, cy: 1273, r: 69 },
+            { name: "알베르트 아인슈타인", nameEn: "Albert Einstein", cx: 1670, cy: 1228, r: 69 },
+            { name: "폴 랑주뱅", nameEn: "Paul Langevin", cx: 1928, cy: 1261, r: 69 },
+            { name: "샤를외젠 귀예", nameEn: "C.-E. Guye", cx: 2148, cy: 1252, r: 69 },
+            { name: "찰스 톰슨 리스 윌슨", nameEn: "C.T.R. Wilson", cx: 2401, cy: 1228, r: 69 },
+            { name: "오언 리처드슨", nameEn: "O.W. Richardson", cx: 2627, cy: 1371, r: 69 }
+        ];
+
+        // ===== State =====
+        let scale = 1;
+        let translateX = 0, translateY = 0;
+        let isDragging = false;
+        let dragStartX, dragStartY, lastTX, lastTY;
+        let selectedIdx = -1;
+        let hotspotDragging = false;
+        let hotspotDragIdx = -1;
+        let imgWidth = 0, imgHeight = 0;
+        let labelsAlwaysVisible = false;
+
+        const viewport = document.getElementById('viewport');
+        const canvas = document.getElementById('canvas');
+        const photo = document.getElementById('photo');
+        const hotspotsEl = document.getElementById('hotspots');
+
+        // ===== Init =====
+        photo.addEventListener('load', init);
+        if (photo.complete && photo.naturalWidth > 0) init();
+
+        function init() {
+            imgWidth = photo.naturalWidth;
+            imgHeight = photo.naturalHeight;
+            canvas.style.width = imgWidth + 'px';
+            canvas.style.height = imgHeight + 'px';
+            photo.style.width = imgWidth + 'px';
+            photo.style.height = imgHeight + 'px';
+            resetView();
+            createHotspots();
+            buildSidePanel();
+        }
+
+        function resetView() {
+            const vw = viewport.clientWidth;
+            const vh = viewport.clientHeight;
+            scale = Math.min(vw / imgWidth, vh / imgHeight);
+            translateX = (vw - imgWidth * scale) / 2;
+            translateY = (vh - imgHeight * scale) / 2;
+            applyTransform();
+        }
+
+        function applyTransform() {
+            canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            document.getElementById('zoom-info').textContent = Math.round(scale * 100) + '%';
+        }
+
+        // ===== Create hotspot elements =====
+        function createHotspots() {
+            hotspotsEl.innerHTML = '';
+            scientists.forEach((s, i) => {
+                const el = document.createElement('div');
+                el.className = 'hotspot';
+                el.dataset.index = i;
+                positionHotspot(el, s);
+
+                // Label
+                const lbl = document.createElement('span');
+                lbl.className = 'label';
+                lbl.textContent = `${i + 1}. ${s.name}`;
+                el.appendChild(lbl);
+
+                // Drag events
+                el.addEventListener('mousedown', onHotspotMouseDown);
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectScientist(i);
+                });
+
+                hotspotsEl.appendChild(el);
+            });
+        }
+
+        function positionHotspot(el, s) {
+            const d = s.r * 2;
+            el.style.left = (s.cx - s.r) + 'px';
+            el.style.top = (s.cy - s.r) + 'px';
+            el.style.width = d + 'px';
+            el.style.height = d + 'px';
+        }
+
+        function updateHotspot(idx) {
+            const el = hotspotsEl.children[idx];
+            if (el) positionHotspot(el, scientists[idx]);
+            updateSideItem(idx);
+            if (idx === selectedIdx) updateSelectedInfo();
+        }
+
+        // ===== Hotspot dragging =====
+        function onHotspotMouseDown(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const idx = parseInt(e.currentTarget.dataset.index);
+            selectScientist(idx);
+            hotspotDragging = true;
+            hotspotDragIdx = idx;
+            viewport.classList.add('dragging-hotspot');
+
+            const rect = canvas.getBoundingClientRect();
+            const canvasScale = rect.width / imgWidth;
+            // Store offset from circle center to mouse
+            const s = scientists[idx];
+            const circScreenX = rect.left + s.cx * canvasScale;
+            const circScreenY = rect.top + s.cy * canvasScale;
+            window._dragOffX = e.clientX - circScreenX;
+            window._dragOffY = e.clientY - circScreenY;
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if (hotspotDragging && hotspotDragIdx >= 0) {
+                const rect = canvas.getBoundingClientRect();
+                const canvasScale = rect.width / imgWidth;
+                const imgX = Math.round((e.clientX - window._dragOffX - rect.left) / canvasScale);
+                const imgY = Math.round((e.clientY - window._dragOffY - rect.top) / canvasScale);
+                scientists[hotspotDragIdx].cx = imgX;
+                scientists[hotspotDragIdx].cy = imgY;
+                updateHotspot(hotspotDragIdx);
+                return;
+            }
+            if (isDragging) {
+                translateX = lastTX + (e.clientX - dragStartX);
+                translateY = lastTY + (e.clientY - dragStartY);
+                applyTransform();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (hotspotDragging) {
+                hotspotDragging = false;
+                hotspotDragIdx = -1;
+                viewport.classList.remove('dragging-hotspot');
+            }
+            isDragging = false;
+        });
+
+        // ===== Pan (viewport drag) =====
+        viewport.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.hotspot')) return;
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            lastTX = translateX;
+            lastTY = translateY;
+        });
+
+        // ===== Zoom (scroll) =====
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -1 : 1;
+            const factor = 1 + delta * 0.12;
+            const newScale = Math.min(8, Math.max(0.15, scale * factor));
+
+            const rect = viewport.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            const ratio = newScale / scale;
+            translateX = mx - ratio * (mx - translateX);
+            translateY = my - ratio * (my - translateY);
+            scale = newScale;
+            applyTransform();
+        }, { passive: false });
+
+        function zoomTo(factor) {
+            const newScale = Math.min(8, Math.max(0.15, scale * factor));
+            const rect = viewport.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const ratio = newScale / scale;
+            translateX = cx - ratio * (cx - translateX);
+            translateY = cy - ratio * (cy - translateY);
+            scale = newScale;
+            applyTransform();
+        }
+
+        // ===== Keyboard controls =====
+        document.addEventListener('keydown', (e) => {
+            if (selectedIdx < 0) return;
+            const step = e.shiftKey ? 5 : 1;
+            let handled = true;
+            switch (e.key) {
+                case 'ArrowUp': nudge('cy', -step); break;
+                case 'ArrowDown': nudge('cy', step); break;
+                case 'ArrowLeft': nudge('cx', -step); break;
+                case 'ArrowRight': nudge('cx', step); break;
+                case 'Tab':
+                    e.preventDefault();
+                    selectScientist((selectedIdx + (e.shiftKey ? -1 : 1) + 29) % 29);
+                    break;
+                default: handled = false;
+            }
+            if (handled) e.preventDefault();
+        });
+
+        // ===== Side panel =====
+        function buildSidePanel() {
+            const list = document.getElementById('scientist-list');
+            list.innerHTML = '';
+            scientists.forEach((s, i) => {
+                const div = document.createElement('div');
+                div.className = 'sci-item';
+                div.dataset.index = i;
+                div.innerHTML = `
+            <div class="idx">${i + 1}</div>
+            <div class="name">${s.name}</div>
+            <div class="coords" id="coords-${i}">${s.cx}, ${s.cy}</div>
+        `;
+                div.addEventListener('click', () => selectScientist(i));
+                list.appendChild(div);
+            });
+        }
+
+        function updateSideItem(idx) {
+            const el = document.getElementById(`coords-${idx}`);
+            if (el) el.textContent = `${scientists[idx].cx}, ${scientists[idx].cy}`;
+        }
+
+        function selectScientist(idx) {
+            // Deselect previous
+            if (selectedIdx >= 0) {
+                const prevEl = hotspotsEl.children[selectedIdx];
+                if (prevEl) prevEl.classList.remove('active');
+                const prevItem = document.querySelector(`.sci-item[data-index="${selectedIdx}"]`);
+                if (prevItem) prevItem.classList.remove('selected');
+            }
+            selectedIdx = idx;
+            // Select new
+            const el = hotspotsEl.children[idx];
+            if (el) el.classList.add('active');
+            const item = document.querySelector(`.sci-item[data-index="${idx}"]`);
+            if (item) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+            updateSelectedInfo();
+        }
+
+        function updateSelectedInfo() {
+            if (selectedIdx < 0) return;
+            const s = scientists[selectedIdx];
+            document.getElementById('sel-name').textContent = `${selectedIdx + 1}. ${s.name}`;
+            document.getElementById('inp-cx').value = s.cx;
+            document.getElementById('inp-cy').value = s.cy;
+            document.getElementById('inp-r').value = s.r;
+        }
+
+        function nudge(prop, delta) {
+            if (selectedIdx < 0) return;
+            scientists[selectedIdx][prop] += delta;
+            updateHotspot(selectedIdx);
+        }
+
+        function onInputChange() {
+            if (selectedIdx < 0) return;
+            scientists[selectedIdx].cx = parseInt(document.getElementById('inp-cx').value) || 0;
+            scientists[selectedIdx].cy = parseInt(document.getElementById('inp-cy').value) || 0;
+            scientists[selectedIdx].r = parseInt(document.getElementById('inp-r').value) || 50;
+            updateHotspot(selectedIdx);
+        }
+
+        // ===== Labels toggle =====
+        function toggleLabels() {
+            labelsAlwaysVisible = !labelsAlwaysVisible;
+            document.querySelectorAll('.hotspot .label').forEach(lbl => {
+                lbl.style.display = labelsAlwaysVisible ? 'block' : '';
+            });
+        }
+
+        // ===== Export =====
+        function showExport() {
+            const lines = scientists.map((s, i) => {
+                return `    { idx: ${i + 1}, name: "${s.name}", cx: ${s.cx}, cy: ${s.cy}, r: ${s.r} }`;
+            });
+            const text = `[\n${lines.join(',\n')}\n]`;
+            document.getElementById('export-text').value = text;
+            document.getElementById('export-overlay').style.display = 'block';
+            document.getElementById('export-panel').style.display = 'block';
+        }
+
+        function hideExport() {
+            document.getElementById('export-overlay').style.display = 'none';
+            document.getElementById('export-panel').style.display = 'none';
+        }
+
+        function copyExport() {
+            const ta = document.getElementById('export-text');
+            ta.select();
+            navigator.clipboard.writeText(ta.value).then(() => {
+                alert('클립보드에 복사되었습니다! 이 데이터를 저에게 전달해주세요.');
+            });
+        }
+
+        // ===== Window resize =====
+        window.addEventListener('resize', resetView);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>제5차 솔베이 물리학 회의 (1927)</title>
+    <meta name="description" content="1927년 제5차 솔베이 물리학 회의 유명 단체사진 인터랙티브 뷰어. 29명의 천재 물리학자들을 만나보세요.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+KR:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/png" href="파비콘.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header id="app-header">
+        <h1>제5차 솔베이 물리학 회의 (1927년)</h1>
+        <p class="subtitle">Cinquième Conseil de Physique Solvay — <em>전자와 광자</em> — 1927, 브뤼셀</p>
+    </header>
+
+    <!-- Button Group (Mode Selector + TTS) -->
+    <div id="btn-group">
+        <!-- 모드 선택 버튼: 현재 모드의 반대 버튼만 표시 -->
+        <div id="mode-btns">
+            <button id="mode-game" title="게임 모드로 전환">
+                <span class="mode-icon">🏆</span>
+                <span class="mode-label">게임</span>
+            </button>
+            <button id="mode-desc" title="설명 모드로 전환" class="hidden">
+                <span class="mode-icon">📖</span>
+                <span class="mode-label">설명</span>
+            </button>
+        </div>
+        <!-- 음성 버튼 -->
+        <button id="tts-toggle" title="음성 읽기 ON/OFF" class="tts-on">
+            <span class="tts-icon">🔊</span>
+            <span class="tts-label">음성</span>
+        </button>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div id="zoom-controls">
+        <button id="zoom-in" title="확대">+</button>
+        <button id="zoom-reset" title="원래 크기">⟳</button>
+        <button id="zoom-out" title="축소">−</button>
+    </div>
+
+    <!-- Help hint -->
+    <div id="help-hint">
+        <span class="desktop-hint">🖱️ 스크롤: 확대/축소 &nbsp;|&nbsp; 드래그: 이동 &nbsp;|&nbsp; 롤오버: 이름 &nbsp;|&nbsp; 클릭:
+            상세정보</span>
+        <span class="mobile-hint">👆 탭: 이름 &nbsp;|&nbsp; 다시 탭: 상세정보 &nbsp;|&nbsp; 핀치: 확대/축소 &nbsp;|&nbsp; 드래그: 이동</span>
+    </div>
+
+    <!-- Photo Viewport -->
+    <div id="viewport">
+        <div id="canvas">
+            <img id="photo" src="https://upload.wikimedia.org/wikipedia/commons/6/6e/Solvay_conference_1927.jpg"
+                alt="1927 Solvay Conference Group Photo" draggable="false">
+            <div id="hotspots"></div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="hidden"></div>
+
+    <!-- Info Panel -->
+    <div id="info-panel" class="hidden">
+        <button id="close-panel" title="닫기">✕</button>
+        <div id="info-content">
+            <h2 id="info-name"></h2>
+            <p id="info-years"></p>
+            <p id="info-desc"></p>
+        </div>
+    </div>
+
+    <!-- Game Panel -->
+    <div id="game-panel" class="hidden">
+        <div id="game-status">
+            <span id="game-round-display">1 / 10</span>
+            <span id="game-score-display">0점</span>
+        </div>
+        <p id="game-prompt">사진에서 이 인물을 찾아 클릭하세요</p>
+        <h2 id="game-name"></h2>
+        <p id="game-feedback" class="hidden"></p>
+        <p id="game-desc" class="hidden"></p>
+        <button id="game-next" class="hidden">다음 문제 ▶</button>
+    </div>
+
+    <!-- Game Result Modal -->
+    <div id="game-result" class="hidden">
+        <div id="game-result-box">
+            <h2 id="game-result-title">게임 종료</h2>
+            <p id="game-result-score"></p>
+            <div id="game-wrong-list"></div>
+            <div id="game-result-buttons">
+                <button id="game-retry">📝 틀린 문제 다시 풀기</button>
+                <button id="game-restart">🔄 새 게임 하기</button>
+                <button id="game-exit">📖 설명 모드로</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
