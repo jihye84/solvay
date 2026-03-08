@@ -535,6 +535,7 @@ function onHotspotClick(e) {
 
 function onTouchHotspot(e) {
     e.stopPropagation(); // prevent pan
+    if (gameModeActive) return;  // 게임 모드에서는 툴팁 비활성화 (클릭 이벤트가 처리)
     const target = e.currentTarget;
     const idx = parseInt(target.dataset.index);
     const s = scientists[idx];
