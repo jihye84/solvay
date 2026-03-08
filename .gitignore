@@ -1,0 +1,17 @@
+# 개발용 도구
+calibrate.html
+generate_audio.py
+generate_hints.py
+
+# 원본 이미지 (웹사이트는 Wikipedia URL 사용)
+단체사진.png
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# OS
+.DS_Store
+Thumbs.db
