@@ -767,33 +767,66 @@ document.addEventListener('contextmenu', (e) => {
 // ===== TTS (Audio element + Web Speech API fallback) =====
 let currentAudio = null;
 
+// 재생 요청마다 번호를 매겨, 이전 요청의 늦게 도착한 실패 신호가 새 재생을 방해하지 않게 함
+let ttsRequestId = 0;
+
+// MP3를 재생하고, 파일이 없거나 재생이 막히면 브라우저 음성으로 "한 번만" 대신 읽음
+function playAudioOrSpeak(audioPath, fallbackText, speakFn) {
+    const myId = ++ttsRequestId;
+    let fellBack = false;
+    const fallback = () => {
+        if (fellBack || myId !== ttsRequestId) return;   // 오류·재생실패가 둘 다 와도 한 번만
+        fellBack = true;
+        ttsToggleBtn.classList.remove('tts-speaking');
+        if (currentAudio) { currentAudio.onerror = null; currentAudio = null; }
+        speakFn(fallbackText);
+    };
+    if (!audioPath) { fallback(); return; }
+    const audio = new Audio(audioPath);
+    currentAudio = audio;
+    audio.onplay = () => { if (myId === ttsRequestId) ttsToggleBtn.classList.add('tts-speaking'); };
+    audio.onended = () => {
+        if (myId !== ttsRequestId) return;
+        ttsToggleBtn.classList.remove('tts-speaking');
+        currentAudio = null;
+    };
+    audio.onerror = fallback;
+    audio.play().catch(fallback);
+}
+
 function ttsSpeak(s) {
     if (!ttsEnabled) return;
     ttsStop();
+    playAudioOrSpeak(s.audioFile, s.tts || s.desc, ttsSpeakWebSpeech);
+}
 
-    // MP3 파일이 있으면 Audio 요소로 재생
-    if (s.audioFile) {
-        currentAudio = new Audio(s.audioFile);
-        currentAudio.onplay = () => ttsToggleBtn.classList.add('tts-speaking');
-        currentAudio.onended = () => {
-            ttsToggleBtn.classList.remove('tts-speaking');
-            currentAudio = null;
-        };
-        currentAudio.onerror = () => {
-            // 파일 로드 실패 시 Web Speech API로 fallback
-            ttsToggleBtn.classList.remove('tts-speaking');
-            currentAudio = null;
-            ttsSpeakWebSpeech(s.tts || s.desc);
-        };
-        currentAudio.play().catch(() => ttsSpeakWebSpeech(s.tts || s.desc));
-        return;
-    }
+// 기기의 한국어 음성 고르기 (자연스러운 음성 우선)
+function getTtsVoice() {
+    const voices = window.speechSynthesis.getVoices().filter(v => /^ko/i.test(v.lang));
+    if (!voices.length) return null;
+    return voices.find(v => /natural|online|neural/i.test(v.name))
+        || voices.find(v => /google/i.test(v.name))
+        || voices[0];
+}
 
-    // MP3 없으면 Web Speech API
-    ttsSpeakWebSpeech(s.tts || s.desc);
+function speakHint(text) {
+    const hint = new SpeechSynthesisUtterance(text);
+    hint.lang = 'ko-KR';
+    hint.rate = 1.0;
+    const voice = getTtsVoice();
+    if (voice) hint.voice = voice;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(hint);
+}
+
+function withEulReul(w) {
+    const c = w.charCodeAt(w.length - 1);
+    if (c < 0xAC00 || c > 0xD7A3) return w + '을(를)';
+    return w + (((c - 0xAC00) % 28) ? '을' : '를');
 }
 
 function ttsSpeakWebSpeech(text) {
+    window.speechSynthesis.cancel();   // 대기열에 남은 말이 다시 나오지 않게 비움
     ttsUtterance = new SpeechSynthesisUtterance(text);
     ttsUtterance.lang = 'ko-KR';
     ttsUtterance.rate = 0.92;
@@ -818,16 +851,24 @@ function ttsSpeakWebSpeech(text) {
     if (window.speechSynthesis.getVoices().length > 0) {
         setVoiceAndSpeak();
     } else {
-        window.speechSynthesis.onvoiceschanged = () => {
+        // 음성 목록이 늦게 오는 기기 대비: 목록이 오거나 0.6초가 지나면 한 번만 읽음
+        let done = false;
+        const once = () => {
+            if (done) return;
+            done = true;
             window.speechSynthesis.onvoiceschanged = null;
             setVoiceAndSpeak();
         };
+        window.speechSynthesis.onvoiceschanged = once;
+        setTimeout(once, 600);
     }
 }
 
 function ttsStop() {
+    ttsRequestId++;   // 진행 중이던 요청의 늦은 대체 재생도 취소
     // Audio 요소 정지
     if (currentAudio) {
+        currentAudio.onerror = null;
         currentAudio.pause();
         currentAudio.currentTime = 0;
         currentAudio = null;
@@ -937,40 +978,7 @@ function gameNewRound() {
         const hintPath = s.audioFile
             ? s.audioFile.replace(/\/([^/]+)\.mp3$/, '/hint_$1.mp3')
             : null;
-
-        if (hintPath) {
-            currentAudio = new Audio(hintPath);
-            currentAudio.onplay = () => ttsToggleBtn.classList.add('tts-speaking');
-            currentAudio.onended = () => {
-                ttsToggleBtn.classList.remove('tts-speaking');
-                currentAudio = null;
-            };
-            currentAudio.onerror = () => {
-                // hint MP3 없으면 Web Speech API로 fallback
-                ttsToggleBtn.classList.remove('tts-speaking');
-                currentAudio = null;
-                const hint = new SpeechSynthesisUtterance(`${s.name}을(를) 찾아보세요`);
-                hint.lang = 'ko-KR';
-                hint.rate = 1.0;
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(hint);
-            };
-            currentAudio.play().catch(() => {
-                ttsToggleBtn.classList.remove('tts-speaking');
-                currentAudio = null;
-                const hint = new SpeechSynthesisUtterance(`${s.name}을(를) 찾아보세요`);
-                hint.lang = 'ko-KR';
-                hint.rate = 1.0;
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(hint);
-            });
-        } else {
-            const hint = new SpeechSynthesisUtterance(`${s.name}을(를) 찾아보세요`);
-            hint.lang = 'ko-KR';
-            hint.rate = 1.0;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(hint);
-        }
+        playAudioOrSpeak(hintPath, `${withEulReul(s.name)} 찾아보세요`, speakHint);
     }
 }
 
